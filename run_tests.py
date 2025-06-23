@@ -4,37 +4,98 @@ import time
 from pathlib import Path
 from datetime import datetime
 import os
+import locale
+
+
+def setup_console_encoding():
+    """Настройка кодировки консоли для корректного отображения символов"""
+    try:
+        # Для Windows
+        if sys.platform == "win32":
+            import win32api
+            win32api.SetConsoleOutputCP(65001)  # UTF-8
+            os.environ["PYTHONIOENCODING"] = "utf-8"
+
+        # Принудительная установка UTF-8 для всех платформ
+        if sys.version_info >= (3, 7):
+            sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+            sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+        else:
+            import io
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
+        locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+    except Exception as e:
+        print(f"Warning: Could not set console encoding: {str(e)}")
+
 
 def log_message(message, log_file):
+    """Логирование сообщений с обработкой Unicode"""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    full_message = f"[{timestamp}] {message}"
-    print(full_message)
-    with open(log_file, 'a', encoding='utf-8') as f:
-        f.write(full_message + "\n")
+    try:
+        safe_message = message.encode('utf-8', errors='replace').decode('utf-8')
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        safe_message = message.encode('ascii', errors='replace').decode('ascii')
+
+    full_message = f"[{timestamp}] {safe_message}"
+
+    try:
+        print(full_message)
+    except UnicodeEncodeError:
+        print(full_message.encode('ascii', errors='replace').decode('ascii'))
+
+    try:
+        with open(log_file, 'a', encoding='utf-8', errors='replace') as f:
+            f.write(full_message + "\n")
+    except Exception as e:
+        print(f"Ошибка записи в лог: {str(e)}")
+
 
 def run_script(script_path, action_name, log_file):
-    log_message(f"🔧 {action_name}...", log_file)
+    """Запуск скрипта с обработкой кодировок"""
+    log_message(f"[Установка] {action_name}...", log_file)
     try:
+        # Создаем окружение с UTF-8
+        env = os.environ.copy()
+        env["PYTHONIOENCODING"] = "utf-8"
+
         result = subprocess.run(
             [sys.executable, str(script_path)],
             check=False,
-            text=True,
-            capture_output=True,
-            encoding='utf-8'
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            encoding='utf-8',
+            errors='replace',
+            env=env,
+            text=True
         )
-        log_message(f"Полный вывод:\n{result.stdout}\n{result.stderr}", log_file)
+
+        # Очистка и нормализация вывода
+        output = f"{result.stdout or ''}\n{result.stderr or ''}".strip()
+        clean_output = output.encode('utf-8', errors='replace').decode('utf-8')
+
+        log_message(f"Полный вывод:\n{clean_output}", log_file)
+
         if "test" in action_name.lower():
-            return True, result.stdout
+            return True, clean_output
+
         if result.returncode != 0:
-            log_message(f"❌ {action_name} завершился с кодом {result.returncode}", log_file)
-            return False, result.stderr
-        log_message(f"✅ {action_name} успешно завершен", log_file)
-        return True, result.stdout
+            log_message(f"[Ошибка] {action_name} завершился с кодом {result.returncode}", log_file)
+            return False, clean_output
+
+        log_message(f"[Успех] {action_name} завершен успешно", log_file)
+        return True, clean_output
+
     except Exception as e:
-        log_message(f"❌ Неожиданная ошибка при {action_name.lower()}: {str(e)}", log_file)
-        return False, str(e)
+        error_msg = str(e).encode('utf-8', errors='replace').decode('utf-8')
+        log_message(f"[Критическая ошибка] При {action_name.lower()}: {error_msg}", log_file)
+        return False, error_msg
+
 
 def main():
+    setup_console_encoding()
+
     base_dir = Path("C:\\Users\\beloz\\PycharmProjects\\VK_project_v.2")
     install_script = base_dir / "run_install.py"
     report_script = base_dir / "run_test_report.py"
@@ -63,9 +124,9 @@ def main():
     uninstall_success, _ = run_script(uninstall_script, "Удаление приложения", log_file)
 
     log_message("\n=== FINAL REPORT ===", log_file)
-    log_message(f"Установка: {'Успешно' if install_success else 'Ошибка'}", log_file)
-    log_message(f"Отчет: {'Успешно' if report_success else 'Ошибка'}", log_file)
-    log_message(f"Удаление: {'Успешно' if uninstall_success else 'Ошибка'}", log_file)
+    log_message(f"Установка: {'✅ Успешно' if install_success else '❌ Ошибка'}", log_file)
+    log_message(f"Отчет: {'✅ Успешно' if report_success else '❌ Ошибка'}", log_file)
+    log_message(f"Удаление: {'✅ Успешно' if uninstall_success else '❌ Ошибка'}", log_file)
 
     if install_success and report_success and uninstall_success:
         log_message("🎉 ВСЕ ОПЕРАЦИИ ВЫПОЛНЕНЫ УСПЕШНО", log_file)
@@ -73,6 +134,7 @@ def main():
     else:
         log_message("🔥 ОБНАРУЖЕНЫ ПРОБЛЕМЫ", log_file)
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

@@ -37,7 +37,7 @@ def kill_processes():
             print(f"⚠ Не удалось завершить {proc}")
 
 def remove_installation_dir():
-    print(f"🗑️ Удаление основной папки: {INSTALL_DIR}")
+    print(f"Удаление основной папки: {INSTALL_DIR}")
     for attempt in range(3):
         try:
             if INSTALL_DIR.exists():
@@ -45,7 +45,7 @@ def remove_installation_dir():
                 print("✓ Папка приложения удалена")
                 return True
             else:
-                print("ℹ️ Папка приложения не найдена")
+                print("Папка приложения не найдена")
                 return False
         except Exception as e:
             print(f"⚠ Ошибка (попытка {attempt + 1}): {e}")
@@ -53,7 +53,7 @@ def remove_installation_dir():
     return False
 
 def clean_leftovers():
-    print("🧹 Очистка остаточных файлов...")
+    print("Очистка остаточных файлов...")
     for location in LEFTOVER_LOCATIONS:
         try:
             if location.exists():
@@ -64,7 +64,7 @@ def clean_leftovers():
                     shutil.rmtree(location, ignore_errors=True)
                     print(f"✓ Удалена папка: {location}")
         except Exception as e:
-            print(f"⚠ Ошибка при удалении {location}: {e}")
+            print(f"Ошибка при удалении {location}: {e}")
 
 def verify_uninstallation():
     remaining = []
@@ -73,7 +73,7 @@ def verify_uninstallation():
         if location.exists():
             remaining.append(str(location))
     if remaining:
-        print("\n⚠ Оставшиеся элементы:")
+        print("\n Оставшиеся элементы:")
         for item in remaining:
             print(f"• {item}")
         return False
@@ -81,16 +81,16 @@ def verify_uninstallation():
 
 def main():
     print(f"\n{'=' * 50}")
-    print(f"🚀 Начало удаления {APP_NAME}".center(50))
+    print(f" Начало удаления {APP_NAME}".center(50))
     print(f"{'=' * 50}\n")
     kill_processes()
     remove_installation_dir()
     clean_leftovers()
     print(f"\n{'=' * 50}")
     if verify_uninstallation():
-        print(f"✅ {APP_NAME} успешно удалён!".center(50))
+        print(f" {APP_NAME} успешно удалён!".center(50))
     else:
-        print(f"❌ Удаление завершено с ошибками".center(50))
+        print(f" Удаление завершено с ошибками".center(50))
     print(f"{'=' * 50}\n")
 
 if __name__ == "__main__":
